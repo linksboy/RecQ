@@ -20,7 +20,7 @@ class Config(object):
         return self.config.has_key(key)
 
     def readConfiguration(self,fileName):
-        path = '../config/'+fileName
+        path = fileName
         if not os.path.exists(path):
             print 'config file is not found!'
             raise IOError

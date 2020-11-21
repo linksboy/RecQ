@@ -1,4 +1,6 @@
 import sys
+sys.path.append("/home/songxuan/python/RecQ")
+#print(sys.path)
 from re import split
 from tool.config import Config,LineConfig
 from tool.file import FileIO
@@ -13,6 +15,8 @@ class RecQ(object):
         self.testData = []  # testData
         self.relation = []
         self.measure = []
+        self.inform1 = []
+        self.inform2 = []
         self.config =config
         self.ratingConfig = LineConfig(config['ratings.setup'])
         if self.config.contains('evaluation.setup'):
@@ -46,6 +50,14 @@ class RecQ(object):
         if config.contains('social'):
             self.socialConfig = LineConfig(self.config['social.setup'])
             self.relation = FileIO.loadRelationship(config,self.config['social'])
+        
+        if config.contains('actor'):
+            self.ActConfig = LineConfig(self.config['actor.setup'])
+            self.inform1 = FileIO.loadInformation1(config,self.config['actor'])
+
+        if config.contains('dire'):
+            self.DireConfig = LineConfig(self.config['dire.setup'])
+            self.inform2 = FileIO.loadInformation2(config,self.config['dire'])
 
         print 'preprocessing...'
 
@@ -79,7 +91,9 @@ class RecQ(object):
 
             for train,test in DataSplit.crossValidation(self.trainingData,k,binarized=binarized):
                 fold = '['+str(i)+']'
-                if self.config.contains('social'):
+                if self.config.contains('actor'):
+                    recommender = self.config['recommender'] + "(self.config,train,test,self.relation,self.inform1,self.inform2,fold)"
+                elif self.config.contains('social'):
                     recommender = self.config['recommender'] + "(self.config,train,test,self.relation,fold)"
                 else:
                     recommender = self.config['recommender']+ "(self.config,train,test,fold)"
@@ -117,7 +131,9 @@ class RecQ(object):
 
 
         else:
-            if self.config.contains('social'):
+            if self.config.contains('actor'):
+                recommender = self.config['recommender']+'(self.config,self.trainingData,self.testData,self.relation,self.inform1,self.inform2)'
+            elif self.config.contains('social'):
                 recommender = self.config['recommender']+'(self.config,self.trainingData,self.testData,self.relation)'
             else:
                 recommender = self.config['recommender'] + '(self.config,self.trainingData,self.testData)'

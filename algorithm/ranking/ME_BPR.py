@@ -1,4 +1,4 @@
-from baseclass.SocialRecommender import SocialRecommender
+from baseclass.MetaRecommender import MetaRecommender
 from tool import config
 from random import shuffle, choice
 from collections import defaultdict
@@ -9,28 +9,31 @@ import gensim.models.word2vec as w2v
 
 
 
-class IF_BPR(SocialRecommender):
-    def __init__(self, conf, trainingSet=None, testSet=None, relation=None, fold='[1]'):
-        SocialRecommender.__init__(self, conf=conf, trainingSet=trainingSet, testSet=testSet, relation=relation,fold=fold)
+class ME_BPR(MetaRecommender):
+    def __init__(self, conf, trainingSet=None, testSet=None, relation=None, inform1=None , inform2=None , fold='[1]'):
+        MetaRecommender.__init__(self, conf=conf, trainingSet=trainingSet, testSet=testSet, relation=relation , inform1=inform1 , inform2=inform2 ,fold=fold)
 
     def readConfiguration(self):
-        super(IF_BPR, self).readConfiguration()
-        options = config.LineConfig(self.config['IF_BPR'])
+        super(ME_BPR, self).readConfiguration()
+        options = config.LineConfig(self.config['ME_BPR'])
         self.walkCount = int(options['-T'])
         self.walkLength = int(options['-L'])
+        #self.walkMetaLength = int(options['-L1'])
         self.walkDim = int(options['-l'])
         self.winSize = int(options['-w'])
         self.topK = int(options['-k'])
+       #self.topK-I = int(options['-k1'])
         self.alpha = float(options['-a'])
         self.epoch = int(options['-ep'])
         self.neg = int(options['-neg'])
         self.rate = float(options['-r'])
 
     def printAlgorConfig(self):
-        super(IF_BPR, self).printAlgorConfig()
+        super(ME_BPR, self).printAlgorConfig()
         print 'Specified Arguments of', self.config['recommender'] + ':'
         print 'Walks count per user', self.walkCount
         print 'Length of each walk', self.walkLength
+        #print 'Length of each Meta walk', self.walkMetaLength
         print 'Dimension of user embedding', self.walkDim
         print '=' * 80
 
@@ -48,15 +51,19 @@ class IF_BPR(SocialRecommender):
                     self.data.id2user[self.data.user[items[0]]] = items[0]
 
     def initModel(self):
-        super(IF_BPR, self).initModel()
+        super(ME_BPR, self).initModel()
         self.positive = defaultdict(list)
         self.pItems = defaultdict(list)
         for user in self.data.trainSet_u:
             for item in self.data.trainSet_u[user]:
-                self.positive[user].append(item)
+                if user in self.data.user:
+                    self.positive[user].append(item)
+                else:
+                    print user , "not in dict ..."
                 self.pItems[item].append(user)
         self.readNegativeFeedbacks()
         self.P = np.ones((len(self.data.user), self.embed_size))*0.1  # latent user matrix
+        
         self.threshold = {}
         self.avg_sim = {}
         self.thres_d = dict.fromkeys(self.data.user.keys(),0) #derivatives for learning thresholds
@@ -80,41 +87,36 @@ class IF_BPR(SocialRecommender):
         # build U-F-NET
         print 'Building weighted user-friend network...'
         # filter isolated nodes and low ratings
-
-        print ' Length of relation ', len(self.social.relation)
-        print ' Length of followers' , len(self.social.followers)
-        print ' Length of users' , len(self.data.user)
-        print ' Length of items' , len(self.data.item)
-        print ' Length of followees' , len(self.social.followees)
-
         # Definition of Meta-Path
-        #定义路径
+        #
         p1 = 'UIU'
         p2 = 'UFU'
         p3 = 'UTU'
         p4 = 'UFIU'
         p5 = 'UFUIU'
-        mPaths = [p1, p2, p3, p4, p5]
+        p6 = 'UIAIU'
+        p7 = 'UIDIU'
+        mPaths = [p1,p6]
+        print 'length of positive1:', len(self.positive)
 
-        #定义权值
         self.G = np.random.rand(self.data.trainingSize()[0], self.walkDim) * 0.1
         self.W = np.random.rand(self.data.trainingSize()[0], self.walkDim) * 0.1
-        #构建信任网络
+
         self.UFNet = defaultdict(list) # a -> b #a trusts b
-        for u in self.social.followees:  #u存在于followees：（u：u关注的人）
-            s1 = set(self.social.followees[u])#s1是u的所有关注对象的集合
-            for v in self.social.followees[u]:# 对所有关注对象进行循环
-                if v in self.social.followees:  # make sure that v has out links#如果v也存在于followees
-                    if u <> v:#如果u不等于v
-                        s2 = set(self.social.followees[v])#找出v的所有关注对象集合
-                        weight = len(s1.intersection(s2))#weight是s1和s2的交集，一般为0
-                        self.UFNet[u] += [v] * (weight + 1)#将u，v加入信任网络
+        for u in self.social.followees:
+            s1 = set(self.social.followees[u])
+            for v in self.social.followees[u]:
+                if v in self.social.followees:  # make sure that v has out links
+                    if u <> v:
+                        s2 = set(self.social.followees[v])
+                        weight = len(s1.intersection(s2))
+                        self.UFNet[u] += [v] * (weight + 1)
 
         self.UTNet = defaultdict(list) # a <- b #a is trusted by b
-        for u in self.social.followers:# followers集合：（u，关注u的人）
+        for u in self.social.followers:
             s1 = set(self.social.followers[u])
             for v in self.social.followers[u]:
-                if self.social.followers.has_key(v):  # make sure that v has out links确定v也有关注他的人
+                if self.social.followers.has_key(v):  # make sure that v has out links
                     if u <> v:
                         s2 = set(self.social.followers[v])
                         weight = len(s1.intersection(s2))
@@ -132,22 +134,30 @@ class IF_BPR(SocialRecommender):
                 if mp == p2:
                     self.walkCount = 8
                 if mp == p3:
-                    self.walkCount = 8
-                if mp == p4:
+                    self.walkCount = 8                            
+                if mp == p6:
                     self.walkCount = 5
-                if mp == p5:
+                if mp == p7:
                     self.walkCount = 5
                 for t in range(self.walkCount):
                     path = ['U' + user]
                     lastNode = user
                     nextNode = user
                     lastType = 'U'
+                    #print 'length of positive2:', len(self.positive)
                     for i in range(self.walkLength / len(mp[1:])):
+                        print 'length of positive1:', len(self.positive)
                         for tp in mp[1:]:
+                            print 'length of positive1.1:', len(self.positive)
                             try:
                                 if tp == 'I':
-                                    nextNode = choice(self.positive[lastNode])
-
+                                    if lastType == 'A':
+                                        nextNode = choice(self.meta.act[lastNode])
+                                    elif lastType == 'D':
+                                        nextNode = choice(self.meta.dm[lastNode])
+                                    else:
+                                        nextNode = choice(self.positive[lastNode])
+                                print 'length of positiveI:', len(self.positive)
                                 if tp == 'U':
                                     if lastType == 'I':
                                         nextNode = choice(self.pItems[lastNode])
@@ -159,7 +169,7 @@ class IF_BPR(SocialRecommender):
                                         nextNode = choice(self.UTNet[lastNode])
                                         while not self.data.user.has_key(nextNode):
                                             nextNode = choice(self.UTNet[lastNode])
-
+                                print 'length of positiveU:', len(self.positive)
                                 if tp == 'F':
                                     nextNode = choice(self.UFNet[lastNode])
                                     while not self.data.user.has_key(nextNode):
@@ -170,17 +180,41 @@ class IF_BPR(SocialRecommender):
                                     while not self.data.user.has_key(nextNode):
                                         nextNode = choice(self.UFNet[lastNode])
 
+                                if tp == 'A':
+                                    i = 0
+                                    print 'length of positiveA1:', len(self.positive)
+                                    nextNode = choice(self.meta.actors[lastNode])
+                                    while not self.meta.actor.has_key(nextNode) and i > len(self.meta.actors[lastNode]):
+                                        nextNode = choice(self.meta.actors[lastNode])
+                                        i = i+1
+                                print 'length of positiveA2:', len(self.positive)
+                                
+                                if tp == 'D':
+                                    i = 0
+                                    print 'length of positiveD1:', len(self.positive)
+                                    nextNode = choice(self.meta.md[lastNode])
+                                    while not self.meta.dire.has_key(nextNode) and i > len(self.meta.md[lastNode]):
+                                        nextNode = choice(self.meta.md[lastNode])
+                                        i = i+1
+                                    print 'length of positiveD2:', len(self.positive)
+                                print 'length of positive2.1:', len(self.positive)    
                                 path.append(tp + nextNode)
+                                print 'length of positive2.2:', len(self.positive)
                                 lastNode = nextNode
                                 lastType = tp
-
-                            except (KeyError, IndexError):
+                                print 'length of positive2.3:', len(self.positive)
+                            except (KeyError):
+                                print 'length of positive:', len(self.positive)
                                 path = []
+                                print 'length of positive1:', len(self.positive)
                                 break
 
                     if path:
+                        #print 'length of positive3:', len(self.positive)
                         self.pWalks.append(path)
+                        #print 'length of positive4:', len(self.positive)
 
+        print 'length of positive:', len(self.positive)
         print 'Generating random meta-path random walks... (Negative)'
         self.nWalks = []
         # self.usercovered = {}
@@ -207,7 +241,10 @@ class IF_BPR(SocialRecommender):
                         for tp in mp[1:]:
                             try:
                                 if tp == 'I':
-                                    nextNode = choice(self.negative[lastNode])
+                                    if lastType == 'A':
+                                        nextNode = choice(self.meta.act[lastNode])
+                                    else:
+                                        nextNode = choice(self.negative[lastNode])
 
                                 if tp == 'U':
                                     if lastType == 'I':
@@ -230,6 +267,12 @@ class IF_BPR(SocialRecommender):
                                     nextNode = choice(self.UFNet[lastNode])
                                     while not self.data.user.has_key(nextNode):
                                         nextNode = choice(self.UFNet[lastNode])
+                                
+                                if tp == 'A':
+                                    i = 0
+                                    nextNode = choice(self.meta.actors[lastNode])
+                                    while not self.data.item.has_key(nextNode) and i > len(self.meta.actors[lastNode]):
+                                        nextNode = choice(self.meta.actors[lastNode])
 
                                 path.append(tp + nextNode)
                                 lastNode = nextNode
@@ -243,6 +286,7 @@ class IF_BPR(SocialRecommender):
                         self.nWalks.append(path)
 
         shuffle(self.pWalks)
+        print 'length of positive:', len(self.positive)
         print 'pwalks:', len(self.pWalks)
         print 'nwalks:', len(self.nWalks)
 
@@ -255,7 +299,7 @@ class IF_BPR(SocialRecommender):
         self.nTopKSim = {}
         self.pSimilarity = defaultdict(dict)
         self.nSimilarity = defaultdict(dict)
-        pos_model = w2v.Word2Vec(self.pWalks, size=self.walkDim, window=5, min_count=0, iter=10)#walkDim  Skipgram?
+        pos_model = w2v.Word2Vec(self.pWalks, size=self.walkDim, window=5, min_count=0, iter=10)
         neg_model = w2v.Word2Vec(self.nWalks, size=self.walkDim, window=5, min_count=0, iter=10)
         for user in self.positive:
             uid = self.data.user[user]
@@ -282,7 +326,7 @@ class IF_BPR(SocialRecommender):
             for user2 in self.positive:
                 if user1 <> user2:
                     vec2 = self.W[self.data.user[user2]]
-                    sim = cosine(vec1, vec2)#peaarson
+                    sim = cosine(vec1, vec2)
                     uSim.append((user2, sim))
             fList = sorted(uSim, key=lambda d: d[1], reverse=True)[:self.topK]
             self.threshold[user1] = fList[self.topK / 2][1]

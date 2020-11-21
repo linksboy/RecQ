@@ -16,8 +16,15 @@ class SocialDAO(object):
         for line in self.relation:
             userId1,userId2,weight = line
             #add relations to dict
-            self.followees[userId1][userId2] = weight
-            self.followers[userId2][userId1] = weight
+            if userId1 in self.followees:
+                self.followees[userId1].update({userId2:weight})
+            else:
+                self.followees.update({userId1:{userId2:weight}})
+            
+            if userId2 in self.followers:
+                self.followers[userId2].update({userId1:weight})
+            else:
+                self.followers.update({userId2:{userId1:weight}})
             # order the user
             if userId1 not in self.user:
                 self.user[userId1] = len(self.user)

@@ -1,0 +1,15 @@
+--2020-10-24 15:12:38--  https://github.com/fo40225/tensorflow-windows-wheel/blob/master/1.10.0/py27/CPU/sse2/
+正在解析主机 github.com (github.com)... 192.30.255.112
+正在连接 github.com (github.com)|192.30.255.112|:443... 已连接。
+已发出 HTTP 请求，正在等待回应... 301 Moved Permanently
+位置：https://github.com/fo40225/tensorflow-windows-wheel/tree/master/1.10.0/py27/CPU/sse2 [跟随至新的 URL]
+--2020-10-24 15:12:40--  https://github.com/fo40225/tensorflow-windows-wheel/tree/master/1.10.0/py27/CPU/sse2
+再次使用存在的到 github.com:443 的连接。
+已发出 HTTP 请求，正在等待回应... 200 OK
+长度： 未指定 [text/html]
+正在保存至: “index.html”
+
+index.html                                 [              <=>                                                           ]  76.13K  12.0KB/s    用时 6.4s  
+
+2020-10-24 20:23:59 (12.0 KB/s) - 在 77960 字节处发生读取错误 (成功)。重试中。
+

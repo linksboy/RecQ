@@ -108,6 +108,58 @@ class FileIO(object):
             relation.append([userId1, userId2, weight])
         return relation
 
+    @staticmethod
+    def loadInformation1(conf, filePath):
+        metaConfig = LineConfig(conf['actor.setup'])
+        inform1 = []
+        print 'loading actor data...'
+        with open(filePath) as f:
+            informs = f.readlines()
+            # ignore the headline
+        if metaConfig.contains('-header'):
+            informs = informs[1:]
+        # order of the columns
+        order = metaConfig['-columns'].strip().split()
+        if len(order) <= 2:
+            print 'The actor file is not in a correct format.'
+        for lineNo, line in enumerate(informs):
+            items = split(' |,|\t', line.strip())
+            if len(order) < 2:
+                print 'The actor file is not in a correct format. Error: Line num %d' % lineNo
+                exit(-1)
+            movieId = items[int(order[0])]
+            actorId = items[int(order[1])]
+            if len(order) < 3:
+                weight = 1
+            else:
+                weight = float(items[int(order[2])])
+            inform1.append([movieId, actorId, weight])
+        return inform1
 
-
-
+    @staticmethod
+    def loadInformation2(conf, filePath):
+        metaConfig = LineConfig(conf['dire.setup'])
+        inform2 = []
+        print 'loading director data...'
+        with open(filePath) as f:
+            informs = f.readlines()
+            # ignore the headline
+        if metaConfig.contains('-header'):
+            informs = informs[1:]
+        # order of the columns
+        order = metaConfig['-columns'].strip().split()
+        if len(order) <= 2:
+            print 'The director file is not in a correct format.'
+        for lineNo, line in enumerate(informs):
+            items = split(' |,|\t', line.strip())
+            if len(order) < 2:
+                print 'The actor file is not in a correct format. Error: Line num %d' % lineNo
+                exit(-1)
+            movieId = items[int(order[0])]
+            direId = items[int(order[1])]
+            if len(order) < 3:
+                weight = 1
+            else:
+                weight = float(items[int(order[2])])
+            inform2.append([movieId, direId, weight])
+        return inform2

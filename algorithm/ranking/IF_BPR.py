@@ -88,33 +88,31 @@ class IF_BPR(SocialRecommender):
         print ' Length of followees' , len(self.social.followees)
 
         # Definition of Meta-Path
-        #定义路径
         p1 = 'UIU'
         p2 = 'UFU'
         p3 = 'UTU'
         p4 = 'UFIU'
         p5 = 'UFUIU'
         mPaths = [p1, p2, p3, p4, p5]
-
-        #定义权值
+        
         self.G = np.random.rand(self.data.trainingSize()[0], self.walkDim) * 0.1
         self.W = np.random.rand(self.data.trainingSize()[0], self.walkDim) * 0.1
-        #构建信任网络
+
         self.UFNet = defaultdict(list) # a -> b #a trusts b
-        for u in self.social.followees:  #u存在于followees：（u：u关注的人）
-            s1 = set(self.social.followees[u])#s1是u的所有关注对象的集合
-            for v in self.social.followees[u]:# 对所有关注对象进行循环
-                if v in self.social.followees:  # make sure that v has out links#如果v也存在于followees
-                    if u <> v:#如果u不等于v
-                        s2 = set(self.social.followees[v])#找出v的所有关注对象集合
-                        weight = len(s1.intersection(s2))#weight是s1和s2的交集，一般为0
-                        self.UFNet[u] += [v] * (weight + 1)#将u，v加入信任网络
+        for u in self.social.followees:
+            s1 = set(self.social.followees[u])
+            for v in self.social.followees[u]:
+                if v in self.social.followees:  # make sure that v has out links
+                    if u <> v:
+                        s2 = set(self.social.followees[v])
+                        weight = len(s1.intersection(s2))
+                        self.UFNet[u] += [v] * (weight + 1)
 
         self.UTNet = defaultdict(list) # a <- b #a is trusted by b
-        for u in self.social.followers:# followers集合：（u，关注u的人）
+        for u in self.social.followers:
             s1 = set(self.social.followers[u])
             for v in self.social.followers[u]:
-                if self.social.followers.has_key(v):  # make sure that v has out links确定v也有关注他的人
+                if self.social.followers.has_key(v):  # make sure that v has out links
                     if u <> v:
                         s2 = set(self.social.followers[v])
                         weight = len(s1.intersection(s2))
@@ -176,8 +174,8 @@ class IF_BPR(SocialRecommender):
 
                             except (KeyError, IndexError):
                                 path = []
-                                break
-
+                                break 
+                    
                     if path:
                         self.pWalks.append(path)
 
@@ -243,6 +241,7 @@ class IF_BPR(SocialRecommender):
                         self.nWalks.append(path)
 
         shuffle(self.pWalks)
+        print 'length of positive:',len(self.positive)
         print 'pwalks:', len(self.pWalks)
         print 'nwalks:', len(self.nWalks)
 

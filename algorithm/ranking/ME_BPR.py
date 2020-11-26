@@ -6,6 +6,7 @@ import numpy as np
 from tool.qmath import sigmoid, cosine
 from math import log
 import gensim.models.word2vec as w2v
+import traceback
 
 
 
@@ -56,10 +57,7 @@ class ME_BPR(MetaRecommender):
         self.pItems = defaultdict(list)
         for user in self.data.trainSet_u:
             for item in self.data.trainSet_u[user]:
-                if user in self.data.user:
-                    self.positive[user].append(item)
-                else:
-                    print user , "not in dict ..."
+                self.positive[user].append(item)
                 self.pItems[item].append(user)
         self.readNegativeFeedbacks()
         self.P = np.ones((len(self.data.user), self.embed_size))*0.1  # latent user matrix
@@ -73,14 +71,17 @@ class ME_BPR(MetaRecommender):
         self.PositiveSet = defaultdict(dict)
         self.NegSets = defaultdict(dict)
 
+       
         for user in self.data.user:
-            for item in self.data.trainSet_u[user]:
-                self.PositiveSet[user][item] = 1
+            if user in self.data.trainSet_u:
+                for item in self.data.trainSet_u[user]:
+                    self.PositiveSet[user][item] = 1
 
         for user in self.data.user:
-            for item in self.negative[user]:
-                if self.data.item.has_key(item):
-                    self.NegSets[user][item] = 1
+            if user in self.data.trainSet_i:
+                for item in self.negative[user]:
+                    if self.data.item.has_key(item):
+                        self.NegSets[user][item] = 1
 
     def randomWalks(self):
         print 'Kind Note: This method will probably take much time.'
@@ -96,7 +97,7 @@ class ME_BPR(MetaRecommender):
         p5 = 'UFUIU'
         p6 = 'UIAIU'
         p7 = 'UIDIU'
-        mPaths = [p1,p6]
+        mPaths = [p1,p6,p7]
         print 'length of positive1:', len(self.positive)
 
         self.G = np.random.rand(self.data.trainingSize()[0], self.walkDim) * 0.1
@@ -146,9 +147,9 @@ class ME_BPR(MetaRecommender):
                     lastType = 'U'
                     #print 'length of positive2:', len(self.positive)
                     for i in range(self.walkLength / len(mp[1:])):
-                        print 'length of positive1:', len(self.positive)
+                        #print 'length of positive1:', len(self.positive)
                         for tp in mp[1:]:
-                            print 'length of positive1.1:', len(self.positive)
+                            #print 'length of positive1.1:', len(self.positive)
                             try:
                                 if tp == 'I':
                                     if lastType == 'A':
@@ -156,8 +157,12 @@ class ME_BPR(MetaRecommender):
                                     elif lastType == 'D':
                                         nextNode = choice(self.meta.dm[lastNode])
                                     else:
-                                        nextNode = choice(self.positive[lastNode])
-                                print 'length of positiveI:', len(self.positive)
+                                        if lastNode in self.positive:
+                                            nextNode = choice(self.positive[lastNode])
+                                        else:
+                                            raise IndexError
+                        
+                                #print 'length of positiveI:', len(self.positive)
                                 if tp == 'U':
                                     if lastType == 'I':
                                         nextNode = choice(self.pItems[lastNode])
@@ -169,7 +174,7 @@ class ME_BPR(MetaRecommender):
                                         nextNode = choice(self.UTNet[lastNode])
                                         while not self.data.user.has_key(nextNode):
                                             nextNode = choice(self.UTNet[lastNode])
-                                print 'length of positiveU:', len(self.positive)
+                                #print 'length of positiveU:', len(self.positive)
                                 if tp == 'F':
                                     nextNode = choice(self.UFNet[lastNode])
                                     while not self.data.user.has_key(nextNode):
@@ -182,31 +187,40 @@ class ME_BPR(MetaRecommender):
 
                                 if tp == 'A':
                                     i = 0
-                                    print 'length of positiveA1:', len(self.positive)
+                                    #print 'length of positiveA1:', len(self.positive)
                                     nextNode = choice(self.meta.actors[lastNode])
                                     while not self.meta.actor.has_key(nextNode) and i > len(self.meta.actors[lastNode]):
                                         nextNode = choice(self.meta.actors[lastNode])
                                         i = i+1
-                                print 'length of positiveA2:', len(self.positive)
+                                #print 'length of positiveA2:', len(self.positive)
                                 
                                 if tp == 'D':
                                     i = 0
-                                    print 'length of positiveD1:', len(self.positive)
+                                    #print 'length of positiveD1:', len(self.positive)
                                     nextNode = choice(self.meta.md[lastNode])
                                     while not self.meta.dire.has_key(nextNode) and i > len(self.meta.md[lastNode]):
                                         nextNode = choice(self.meta.md[lastNode])
                                         i = i+1
-                                    print 'length of positiveD2:', len(self.positive)
-                                print 'length of positive2.1:', len(self.positive)    
+                                    #print 'length of positiveD2:', len(self.positive)
+                                
+                                #print 'length of positive2.1:', len(self.positive)    
                                 path.append(tp + nextNode)
-                                print 'length of positive2.2:', len(self.positive)
+                                #print 'length of positive2.2:', len(self.positive)
                                 lastNode = nextNode
                                 lastType = tp
-                                print 'length of positive2.3:', len(self.positive)
-                            except (KeyError):
-                                print 'length of positive:', len(self.positive)
+                                #print 'length of positive2.3:', len(self.positive)
+                            except Exception as e:
+                                #print 'length of positive:', len(self.positive)
                                 path = []
-                                print 'length of positive1:', len(self.positive)
+                                #print self.positive['2817'] , self.data.trainSet_u['2817']
+                                # print 'str(e):\t\t',str(e)
+                                # print 'traceback.print_exc():';
+                                # traceback.print_exc()
+                                # print 'traceback.format_exc():\n%s' % traceback.format_exc()
+                                # print 'tp:',tp
+                                # print 'lastNode:',lastNode
+                                # print 'length of positive:', len(self.positive)
+                                # print 'length of trainset_u',len(self.data.trainSet_u)
                                 break
 
                     if path:
@@ -244,7 +258,10 @@ class ME_BPR(MetaRecommender):
                                     if lastType == 'A':
                                         nextNode = choice(self.meta.act[lastNode])
                                     else:
-                                        nextNode = choice(self.negative[lastNode])
+                                        if lastNode in self.negative:
+                                            nextNode = choice(self.negative[lastNode])
+                                        else:
+                                            raise IndexError
 
                                 if tp == 'U':
                                     if lastType == 'I':
@@ -279,6 +296,8 @@ class ME_BPR(MetaRecommender):
                                 lastType = tp
 
                             except (KeyError, IndexError):
+                                # print 'tp:',tp
+                                # print 'lastNode:',lastNode
                                 path = []
                                 break
 
@@ -361,6 +380,8 @@ class ME_BPR(MetaRecommender):
     def updateSets(self):
         self.JointSet = defaultdict(dict)
         self.PS_Set = defaultdict(dict)
+        # print 'len of user',len(self.data.user)
+        # print 'len of transetu',len(self.data.trainSet_u)
         for user in self.data.user:
             if user in self.trueTopKFriends:
                 for friend in self.trueTopKFriends[user]:
@@ -379,12 +400,27 @@ class ME_BPR(MetaRecommender):
 
             if self.nTopKSim.has_key(user):
                 for friend in self.nTopKSim[user][:self.topK]:
-                    if friend in self.data.user and self.nSimilarity[user][friend]>=self.threshold[user]:
-                        for item in self.negative[friend]:
-                            if item in self.data.item:
-                                if item not in self.PositiveSet[user] and item not in self.JointSet[user] \
-                                        and item not in self.PS_Set[user]:
-                                    self.NegSets[user][item] = friend
+                    try:
+                        if user in self.threshold:
+                            if friend in self.data.user and self.nSimilarity[user][friend]>=self.threshold[user]:
+                                for item in self.negative[friend]:
+                                    if item in self.data.item:
+                                        if item not in self.PositiveSet[user] and item not in self.JointSet[user] \
+                                                and item not in self.PS_Set[user]:
+                                            self.NegSets[user][item] = friend
+                    except KeyError:
+                        self.search(friend)
+                    
+
+    def search(self,key):
+        if key in self.data.trainSet_u:
+            print key
+            print self.positive[key]
+            print self.data.trainSet_u[key]
+            print self.data.user[key]
+        else: 
+            print key
+
 
     def buildModel(self):
 

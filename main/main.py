@@ -64,4 +64,4 @@ if __name__ == '__main__':
     recSys = RecQ(conf)
     recSys.execute()
     e = time.time()
-    print "Run time: %f s" % (e - s)/60
+    print 'Run time: ' , (e - s)/60

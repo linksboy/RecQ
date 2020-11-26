@@ -5,7 +5,7 @@ from collections import defaultdict
 class MetaDAO(object):
     def __init__(self,conf,inform1=None,inform2=None):
         self.config = conf
-        self.item = {} #used to store the order of items
+        self.item = {} #used to store the order of items in trainingset
         self.actor = {} #used to store the order of actors
         self.dire = {} #used to store the order of directors
         self.inform1 = inform1
@@ -56,7 +56,7 @@ class MetaDAO(object):
                 self.dm.update({direId:[movieId]})
 
             # order the movie
-            if movieId not in self.item:
+            if movieId not in self.item :
                 self.item[movieId] = len(self.item)
             if direId not in self.dire:
                 self.dire[direId] = len(self.dire)
